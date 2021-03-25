@@ -18,9 +18,83 @@ library(rstanarm)
 
 x <- trains %>% 
   mutate(move_to_pop = ifelse(att_end >= att_start + 1, TRUE, FALSE)) %>% 
-  select(move_to_pop, treatment, age)
+  select(move_to_pop, treatment, age) 
+  
+
+train_fit <- stan_glm(data = x,
+                  formula = move_to_pop ~ treatment,
+                  family = binomial,
+                  refresh = 0,
+                  seed = 365)
 ```
 
+```{r}
+newobs <- tibble(treatment = c("Treated", "Control"))
 
+pe <- posterior_epred(train_fit, 
+                      newdata = newobs) %>% 
+  as_tibble()
+```
+
+```{r}
+pe %>% 
+  ggplot(aes(x = `1` - `2`)) +
+    geom_histogram(aes(y = after_stat(count/sum(count))),
+                   bins = 100)  +
+    labs(title = "Posterior Distribution for the Probability of Casual Effect of 
+    the treatment on the probability of becoming more populist",
+         subtitle = "The population proportion is the same as the probability for any individual",
+         x = "Probability of of Casual Effect of the Treatment",
+         y = "probability") +
+    scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    theme_classic()
+
+#there is a 10-30 % chance that the treatment has an efect on the units and makes them more populist
+```
+
+```{r}
+newobs <- tibble(treatment = c(rep("Treated", 25)))
+```
+
+```{r}
+pp <- posterior_predict(train_fit, 
+                  newdata = newobs) %>% 
+  as_tibble() %>% 
+  mutate_all(as.numeric) %>%
+  rowwise() %>%
+  mutate(total = sum(c_across()))
+
+pp %>%
+  ggplot(aes(x = total)) +
+    geom_histogram(aes(y = after_stat(count/sum(count))),
+                   bins = 100) + 
+    labs(title = "Posterior for Number of People who Became More Populist",
+         subtitle = "Ten is the most likely number, but values from 4 to 15 are plausible",
+         x = "Number",
+         y = "Probability") + 
+    scale_x_continuous(labels = scales::number_format(accuracy = 1)) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    theme_classic()
+  
+```
+
+wisdom:
+-limit of people who use public transportation
+- youngest person was 20 and oldest was 68
+-smaller amount of observations
+-only in 2012
+
+justice: 
+
+courage:
+fitting to epred
+
+
+What is the casual effect of the treatment on the probability of becoming more 
+populist?
+
+
+If we assign the treatment to 25 people, how many will become more populist?
 
 
